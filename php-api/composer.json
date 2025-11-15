@@ -1,0 +1,6 @@
+{
+    "name": "excop/wanted-api",
+    "require": {
+      "phpoffice/phpspreadsheet": "^2.1"
+    }
+  }

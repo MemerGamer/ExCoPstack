@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExCoP Wanted List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-slate-800 mb-2">ExCoP Wanted List</h1>
+            <p class="text-slate-600">Frontend: COBOL | Backend: PHP | DB: Excel (.xlsx) | REST API via CSV</p>
+        </header>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-slate-700 mb-4">Add New Wanted</h2>
+            <form id="add-form" class="flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label for="name" class="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name" 
+                        required 
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition"
+                        placeholder="Enter name"
+                    >
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label for="bounty" class="block text-sm font-medium text-slate-700 mb-1">Bounty</label>
+                    <input 
+                        type="text" 
+                        id="bounty" 
+                        name="bounty" 
+                        required 
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition"
+                        placeholder="Enter bounty"
+                    >
+                </div>
+                <button 
+                    type="submit" 
+                    class="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition shadow-md hover:shadow-lg"
+                >
+                    Add to Wanted
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-semibold text-slate-700 mb-4">Wanted List</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100">
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">ID</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">Name</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">Bounty</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">Updated</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-200"></tbody>
+                </table>
+                <div id="loading" class="text-center py-8 text-slate-500">
+                    <p>Loading data...</p>
+                </div>
+                <div id="empty" class="text-center py-8 text-slate-500 hidden">
+                    <p>No wanted entries yet. Add one above!</p>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-8 text-center text-slate-500 text-sm">
+            <p>Pure COBOL sockets. ExCoP.</p>
+        </footer>
+    </div>
+
+    <script>
+        console.log('Script loaded, waiting for DOM...');
+        // Global variables for table elements
+        let tbody, loading, empty;
+        try {
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, starting fetch...');
+            tbody = document.getElementById('table-body');
+            loading = document.getElementById('loading');
+            empty = document.getElementById('empty');
+
+            console.log('Elements found:', { tbody: !!tbody, loading: !!loading, empty: !!empty });
+
+            if (!tbody || !loading || !empty) {
+                console.error('Required elements not found!');
+                return;
+            }
+
+            // Fetch from PHP API (called from browser, not COBOL)
+            console.log('About to fetch from http://localhost:9000/api/wanted...');
+            fetch('http://localhost:9000/api/wanted', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'text/plain'
+                },
+                mode: 'cors'
+            })
+                .then(r => {
+                    console.log('Response status:', r.status);
+                    console.log('Response ok:', r.ok);
+                    if (!r.ok) {
+                        throw new Error(`HTTP error! status: ${r.status}`);
+                    }
+                    return r.text();
+                })
+                .then(csv => {
+                    console.log('Received CSV length:', csv.length);
+                    console.log('Received CSV preview:', csv.substring(0, 100));
+                    loading.style.display = 'none';
+                    const rows = csv.trim().split('\n').filter(r => r);
+                    
+                    console.log('Parsed rows:', rows.length);
+                    
+                    if (rows.length === 0) {
+                        empty.classList.remove('hidden');
+                        return;
+                    }
+
+                    rows.forEach(row => {
+                        const parts = parseCSVRow(row);
+                        if (parts.length >= 4) {
+                            const tr = document.createElement('tr');
+                            tr.className = 'hover:bg-slate-50 transition';
+                            tr.dataset.id = parts[0];
+                            tr.innerHTML = `
+                                <td class="px-4 py-3 text-sm text-slate-700 font-mono">${escapeHtml(parts[0])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-900 font-medium" data-field="name">${escapeHtml(parts[1])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-700" data-field="bounty">${escapeHtml(parts[2])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">${escapeHtml(parts[3])}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    <button class="edit-btn px-3 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 mr-2" data-id="${escapeHtml(parts[0])}" data-name="${escapeHtml(parts[1])}" data-bounty="${escapeHtml(parts[2])}">Edit</button>
+                                    <button class="delete-btn px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" data-id="${escapeHtml(parts[0])}">Delete</button>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
+                        }
+                    });
+                    
+                    // Add event listeners for edit and delete buttons
+                    tbody.querySelectorAll('.edit-btn').forEach(btn => {
+                        btn.addEventListener('click', handleEdit);
+                    });
+                    tbody.querySelectorAll('.delete-btn').forEach(btn => {
+                        btn.addEventListener('click', handleDelete);
+                    });
+                })
+                .catch(e => {
+                    console.error('Fetch error:', e);
+                    console.error('Error details:', e.message, e.stack);
+                    loading.style.display = 'none';
+                    empty.classList.remove('hidden');
+                    empty.innerHTML = '<p class="text-red-500">Error loading data: ' + escapeHtml(e.message) + '. Check if PHP API is running.</p>';
+                });
+
+            // Handle form submission
+            const form = document.getElementById('add-form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    console.log('Form submitted');
+                    const nameInput = document.getElementById('name');
+                    const bountyInput = document.getElementById('bounty');
+                    const name = nameInput.value.trim();
+                    const bounty = bountyInput.value.trim();
+                    
+                    if (!name || !bounty) {
+                        alert('Please fill in both name and bounty');
+                        return;
+                    }
+                    
+                    console.log('Submitting to API:', { name, bounty });
+                    const formData = new URLSearchParams();
+                    formData.append('name', name);
+                    formData.append('bounty', bounty);
+                    
+                    fetch('http://localhost:9000/api/wanted', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: formData.toString(),
+                        mode: 'cors',
+                        redirect: 'manual'
+                    })
+                    .then(r => {
+                        console.log('POST response status:', r.status);
+                        if (r.status === 303 || r.status === 200 || r.status === 0) {
+                            // Clear form
+                            nameInput.value = '';
+                            bountyInput.value = '';
+                            // Reload the table by fetching again
+                            return fetch('http://localhost:9000/api/wanted', {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'text/plain'
+                                },
+                                mode: 'cors'
+                            });
+                        } else {
+                            throw new Error(`HTTP error! status: ${r.status}`);
+                        }
+                    })
+                    .then(r => {
+                        if (r && r.ok) {
+                            return r.text();
+                        }
+                        return null;
+                    })
+            .then(csv => {
+                if (csv !== null && tbody && loading && empty) {
+                    // Update the table with new data
+                    tbody.innerHTML = '';
+                    loading.style.display = 'block';
+                    empty.classList.add('hidden');
+                    
+                    const rows = csv.trim().split('\n').filter(r => r);
+                    if (rows.length === 0) {
+                        loading.style.display = 'none';
+                        empty.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    rows.forEach(row => {
+                        const parts = parseCSVRow(row);
+                        if (parts.length >= 4) {
+                            const tr = document.createElement('tr');
+                            tr.className = 'hover:bg-slate-50 transition';
+                            tr.dataset.id = parts[0];
+                            tr.innerHTML = `
+                                <td class="px-4 py-3 text-sm text-slate-700 font-mono">${escapeHtml(parts[0])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-900 font-medium" data-field="name">${escapeHtml(parts[1])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-700" data-field="bounty">${escapeHtml(parts[2])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">${escapeHtml(parts[3])}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    <button class="edit-btn px-3 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 mr-2" data-id="${escapeHtml(parts[0])}" data-name="${escapeHtml(parts[1])}" data-bounty="${escapeHtml(parts[2])}">Edit</button>
+                                    <button class="delete-btn px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" data-id="${escapeHtml(parts[0])}">Delete</button>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
+                        }
+                    });
+                    
+                    // Add event listeners for edit and delete buttons
+                    tbody.querySelectorAll('.edit-btn').forEach(btn => {
+                        btn.addEventListener('click', handleEdit);
+                    });
+                    tbody.querySelectorAll('.delete-btn').forEach(btn => {
+                        btn.addEventListener('click', handleDelete);
+                    });
+                    loading.style.display = 'none';
+                } else {
+                    // Fallback: reload the page
+                    location.reload();
+                }
+            })
+                    .catch(e => {
+                        console.error('POST error:', e);
+                        alert('Error adding wanted entry: ' + e.message);
+                    });
+                });
+            }
+        });
+        } catch(e) {
+            console.error('Script error:', e);
+            alert('JavaScript error: ' + e.message);
+        }
+
+        function parseCSVRow(row) {
+            const parts = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < row.length; i++) {
+                const char = row[i];
+                if (char === '"') {
+                    if (inQuotes && row[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    parts.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            parts.push(current.trim());
+            return parts;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function handleEdit(e) {
+            const btn = e.target;
+            const id = btn.dataset.id;
+            const name = btn.dataset.name;
+            const bounty = btn.dataset.bounty;
+            
+            const newName = prompt('Enter new name:', name);
+            if (newName === null) return;
+            
+            const newBounty = prompt('Enter new bounty:', bounty);
+            if (newBounty === null) return;
+            
+            if (!newName.trim() || !newBounty.trim()) {
+                alert('Name and bounty cannot be empty');
+                return;
+            }
+            
+            const formData = new URLSearchParams();
+            formData.append('name', newName.trim());
+            formData.append('bounty', newBounty.trim());
+            
+            fetch(`http://localhost:9000/api/wanted/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: formData.toString(),
+                mode: 'cors',
+                redirect: 'manual'
+            })
+            .then(r => {
+                if (r.status === 200 || r.status === 0) {
+                    // Reload the table
+                    return fetch('http://localhost:9000/api/wanted', {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'text/plain'
+                        },
+                        mode: 'cors'
+                    });
+                } else {
+                    throw new Error(`HTTP error! status: ${r.status}`);
+                }
+            })
+            .then(r => {
+                if (r && r.ok) {
+                    return r.text();
+                }
+                return null;
+            })
+            .then(csv => {
+                if (csv !== null && tbody && loading && empty) {
+                    // Update the table
+                    tbody.innerHTML = '';
+                    loading.style.display = 'block';
+                    empty.classList.add('hidden');
+                    
+                    const rows = csv.trim().split('\n').filter(r => r);
+                    if (rows.length === 0) {
+                        loading.style.display = 'none';
+                        empty.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    rows.forEach(row => {
+                        const parts = parseCSVRow(row);
+                        if (parts.length >= 4) {
+                            const tr = document.createElement('tr');
+                            tr.className = 'hover:bg-slate-50 transition';
+                            tr.dataset.id = parts[0];
+                            tr.innerHTML = `
+                                <td class="px-4 py-3 text-sm text-slate-700 font-mono">${escapeHtml(parts[0])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-900 font-medium" data-field="name">${escapeHtml(parts[1])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-700" data-field="bounty">${escapeHtml(parts[2])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">${escapeHtml(parts[3])}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    <button class="edit-btn px-3 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 mr-2" data-id="${escapeHtml(parts[0])}" data-name="${escapeHtml(parts[1])}" data-bounty="${escapeHtml(parts[2])}">Edit</button>
+                                    <button class="delete-btn px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" data-id="${escapeHtml(parts[0])}">Delete</button>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
+                        }
+                    });
+                    
+                    // Re-add event listeners
+                    tbody.querySelectorAll('.edit-btn').forEach(btn => {
+                        btn.addEventListener('click', handleEdit);
+                    });
+                    tbody.querySelectorAll('.delete-btn').forEach(btn => {
+                        btn.addEventListener('click', handleDelete);
+                    });
+                    loading.style.display = 'none';
+                }
+            })
+            .catch(e => {
+                console.error('Update error:', e);
+                alert('Error updating entry: ' + e.message);
+            });
+        }
+
+        function handleDelete(e) {
+            const btn = e.target;
+            const id = btn.dataset.id;
+            
+            if (!confirm(`Are you sure you want to delete entry #${id}?`)) {
+                return;
+            }
+            
+            fetch(`http://localhost:9000/api/wanted/${id}`, {
+                method: 'DELETE',
+                mode: 'cors',
+                redirect: 'manual'
+            })
+            .then(r => {
+                if (r.status === 200 || r.status === 0) {
+                    // Reload the table
+                    return fetch('http://localhost:9000/api/wanted', {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'text/plain'
+                        },
+                        mode: 'cors'
+                    });
+                } else {
+                    throw new Error(`HTTP error! status: ${r.status}`);
+                }
+            })
+            .then(r => {
+                if (r && r.ok) {
+                    return r.text();
+                }
+                return null;
+            })
+            .then(csv => {
+                if (csv !== null && tbody && loading && empty) {
+                    // Update the table
+                    tbody.innerHTML = '';
+                    loading.style.display = 'block';
+                    empty.classList.add('hidden');
+                    
+                    const rows = csv.trim().split('\n').filter(r => r);
+                    if (rows.length === 0) {
+                        loading.style.display = 'none';
+                        empty.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    rows.forEach(row => {
+                        const parts = parseCSVRow(row);
+                        if (parts.length >= 4) {
+                            const tr = document.createElement('tr');
+                            tr.className = 'hover:bg-slate-50 transition';
+                            tr.dataset.id = parts[0];
+                            tr.innerHTML = `
+                                <td class="px-4 py-3 text-sm text-slate-700 font-mono">${escapeHtml(parts[0])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-900 font-medium" data-field="name">${escapeHtml(parts[1])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-700" data-field="bounty">${escapeHtml(parts[2])}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">${escapeHtml(parts[3])}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    <button class="edit-btn px-3 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 mr-2" data-id="${escapeHtml(parts[0])}" data-name="${escapeHtml(parts[1])}" data-bounty="${escapeHtml(parts[2])}">Edit</button>
+                                    <button class="delete-btn px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" data-id="${escapeHtml(parts[0])}">Delete</button>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
+                        }
+                    });
+                    
+                    // Re-add event listeners
+                    tbody.querySelectorAll('.edit-btn').forEach(btn => {
+                        btn.addEventListener('click', handleEdit);
+                    });
+                    tbody.querySelectorAll('.delete-btn').forEach(btn => {
+                        btn.addEventListener('click', handleDelete);
+                    });
+                    loading.style.display = 'none';
+                }
+            })
+            .catch(e => {
+                console.error('Delete error:', e);
+                alert('Error deleting entry: ' + e.message);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  php-api:
+    build:
+      context: ./php-api
+    container_name: excop-php-api
+    volumes:
+      - ./storage:/app/storage
+    ports:
+      - "9000:9000"
+    environment:
+      - TZ=UTC
+
+  cobol:
+    build:
+      context: ./cobol
+    container_name: excop-cobol
+    depends_on:
+      - php-api
+    ports:
+      - "8888:8080"
+    environment:
+      - API_BASE=http://php-api:9000
+      - TZ=UTC
