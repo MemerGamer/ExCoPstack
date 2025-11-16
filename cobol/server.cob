@@ -40,7 +40,8 @@ IDENTIFICATION DIVISION.
        01  NAME                    PIC X(1024) VALUE SPACES.
        01  BOUNTY                  PIC X(1024) VALUE SPACES.
 
-       01  API-BASE                PIC X(256) VALUE "http://php-api:9000".
+       01  API-BASE                PIC X(256) VALUE SPACES.
+       01  API-BASE-ENV            PIC X(256) VALUE SPACES.
        01  CMD                     PIC X(8192) VALUE SPACES.
 
        77  CRLF                    PIC X(2) VALUE X"0D0A".
@@ -86,6 +87,10 @@ IDENTIFICATION DIVISION.
        PROCEDURE DIVISION.
        MAIN.
            DISPLAY "MAIN: Starting"
+           *> API_BASE is set via environment variable in deployment
+           *> Default to service name for Kubernetes (will be overridden by env var)
+           MOVE "http://php-api-service:9000" TO API-BASE
+           DISPLAY "MAIN: API_BASE set to " API-BASE
            PERFORM INIT
            DISPLAY "MAIN: After INIT, starting ACCEPT-LOOP"
            PERFORM ACCEPT-LOOP

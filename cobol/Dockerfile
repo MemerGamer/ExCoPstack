@@ -8,12 +8,14 @@ WORKDIR /app
 
 COPY index.html /app/index.html
 COPY server.cob /app/server.cob
+COPY entrypoint.sh /app/entrypoint.sh
 
-# Ensure index.html is readable
-RUN chmod 644 /app/index.html
+# Ensure files are readable/executable
+RUN chmod 644 /app/index.html && \
+    chmod +x /app/entrypoint.sh
 
 RUN cobc -x -free -fno-ec=all server.cob -o /app/server
 
 EXPOSE 8080
 
-CMD ["/app/server"]
+CMD ["/app/entrypoint.sh"]

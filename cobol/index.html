@@ -95,8 +95,14 @@
 
     <script>
         console.log('Script loaded, waiting for DOM...');
-        // Global variables for table elements
+        // Global variables for table elements and API base
         let tbody, loading, empty;
+        // Global API base URL - use relative URL for Kubernetes, fallback to localhost for local dev
+        const apiBase = (window.location.origin.includes('localhost') && window.location.port === '8888')
+            ? 'http://localhost:9000/api' 
+            : '/api';
+        console.log('API Base URL:', apiBase);
+        
         try {
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, starting fetch...');
@@ -110,10 +116,8 @@
                 console.error('Required elements not found!');
                 return;
             }
-
-            // Fetch from PHP API (called from browser, not COBOL)
-            console.log('About to fetch from http://localhost:9000/api/wanted...');
-            fetch('http://localhost:9000/api/wanted', {
+            console.log('About to fetch from ' + apiBase + '/wanted...');
+            fetch(apiBase + '/wanted', {
                 method: 'GET',
                 headers: {
                     'Accept': 'text/plain'
@@ -198,23 +202,25 @@
                     formData.append('name', name);
                     formData.append('bounty', bounty);
                     
-                    fetch('http://localhost:9000/api/wanted', {
+                    fetch(apiBase + '/wanted', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded'
                         },
                         body: formData.toString(),
                         mode: 'cors',
-                        redirect: 'manual'
+                        redirect: 'follow'  // Follow redirects automatically
                     })
                     .then(r => {
                         console.log('POST response status:', r.status);
-                        if (r.status === 303 || r.status === 200 || r.status === 0) {
+                        // POST returns 303 redirect, which fetch will follow
+                        // If we get here, the redirect was followed successfully
+                        if (r.ok || r.status === 200 || r.status === 303) {
                             // Clear form
                             nameInput.value = '';
                             bountyInput.value = '';
                             // Reload the table by fetching again
-                            return fetch('http://localhost:9000/api/wanted', {
+                            return fetch(apiBase + '/wanted', {
                                 method: 'GET',
                                 headers: {
                                     'Accept': 'text/plain'
@@ -222,7 +228,9 @@
                                 mode: 'cors'
                             });
                         } else {
-                            throw new Error(`HTTP error! status: ${r.status}`);
+                            return r.text().then(text => {
+                                throw new Error(`HTTP error! status: ${r.status}, response: ${text}`);
+                            });
                         }
                     })
                     .then(r => {
@@ -342,7 +350,7 @@
             formData.append('name', newName.trim());
             formData.append('bounty', newBounty.trim());
             
-            fetch(`http://localhost:9000/api/wanted/${id}`, {
+            fetch(apiBase + `/wanted/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -352,17 +360,28 @@
                 redirect: 'manual'
             })
             .then(r => {
-                if (r.status === 200 || r.status === 0) {
-                    // Reload the table
-                    return fetch('http://localhost:9000/api/wanted', {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'text/plain'
-                        },
-                        mode: 'cors'
+                console.log('PUT response status:', r.status);
+                if (r.status === 200) {
+                    // Read response text to check for errors
+                    return r.text().then(text => {
+                        console.log('PUT response:', text);
+                        if (text.trim() === 'ok') {
+                            // Reload the table
+                            return fetch(apiBase + '/wanted', {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'text/plain'
+                                },
+                                mode: 'cors'
+                            });
+                        } else {
+                            throw new Error('Update failed: ' + text);
+                        }
                     });
                 } else {
-                    throw new Error(`HTTP error! status: ${r.status}`);
+                    return r.text().then(text => {
+                        throw new Error(`HTTP error! status: ${r.status}, response: ${text}`);
+                    });
                 }
             })
             .then(r => {
@@ -429,23 +448,34 @@
                 return;
             }
             
-            fetch(`http://localhost:9000/api/wanted/${id}`, {
+            fetch(apiBase + `/wanted/${id}`, {
                 method: 'DELETE',
                 mode: 'cors',
                 redirect: 'manual'
             })
             .then(r => {
-                if (r.status === 200 || r.status === 0) {
-                    // Reload the table
-                    return fetch('http://localhost:9000/api/wanted', {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'text/plain'
-                        },
-                        mode: 'cors'
+                console.log('DELETE response status:', r.status);
+                if (r.status === 200) {
+                    // Read response text to check for errors
+                    return r.text().then(text => {
+                        console.log('DELETE response:', text);
+                        if (text.trim() === 'ok') {
+                            // Reload the table
+                            return fetch(apiBase + '/wanted', {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'text/plain'
+                                },
+                                mode: 'cors'
+                            });
+                        } else {
+                            throw new Error('Delete failed: ' + text);
+                        }
                     });
                 } else {
-                    throw new Error(`HTTP error! status: ${r.status}`);
+                    return r.text().then(text => {
+                        throw new Error(`HTTP error! status: ${r.status}, response: ${text}`);
+                    });
                 }
             })
             .then(r => {
