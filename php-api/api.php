@@ -8,9 +8,10 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 
 date_default_timezone_set('UTC');
 
-$storageDir = __DIR__ . '/storage';
+// Get configuration from environment variables (set via ConfigMap/Secret)
+$storageDir = getenv('EXCEL_STORAGE_PATH') ?: __DIR__ . '/storage';
 $xlsx = $storageDir . '/wanted.xlsx';
-$sheetName = 'Wanted';
+$sheetName = getenv('EXCEL_SHEET_NAME') ?: 'Wanted';
 
 @mkdir($storageDir, 0777, true);
 
@@ -49,12 +50,14 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
 // CORS headers to allow requests from COBOL frontend
-$allowedOrigins = ['http://localhost:8888', 'http://127.0.0.1:8888'];
+// In Kubernetes, requests come through Ingress, so we allow all origins
+// In production, you'd restrict this to specific domains
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowedOrigins, true)) {
+if ($origin) {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Access-Control-Allow-Credentials: true');
 } else {
+    // Allow all origins for Kubernetes/Ingress scenarios
     header('Access-Control-Allow-Origin: *');
 }
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -115,7 +118,16 @@ if ($method === 'POST' && $path === '/api/wanted') {
     if ($lock) { flock($lock, LOCK_UN); fclose($lock); }
     
     // Redirect back to COBOL frontend
-    header('Location: http://localhost:8888/');
+    // Use Referer header if available (from Ingress), otherwise use environment variable or relative path
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
+    if ($referer) {
+        // Extract the base URL from referer (remove any path after domain)
+        $parsed = parse_url($referer);
+        $frontendUrl = ($parsed['scheme'] ?? 'http') . '://' . ($parsed['host'] ?? '') . '/';
+    } else {
+        $frontendUrl = getenv('FRONTEND_URL') ?: '/';
+    }
+    header('Location: ' . $frontendUrl);
     http_response_code(303);
     exit;
 }
