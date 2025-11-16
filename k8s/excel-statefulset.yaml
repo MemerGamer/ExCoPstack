@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: excel-cluster
+  namespace: excop
+spec:
+  serviceName: excel-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: excel
+      component: database
+  template:
+    metadata:
+      labels:
+        app: excel
+        component: database
+        # StatefulSet pods have stable names: excel-cluster-0 (primary), excel-cluster-1, excel-cluster-2 (replicas)
+        # The pod name will be used by services to route correctly
+    spec:
+      containers:
+      - name: excel-storage
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            # Create storage directory
+            mkdir -p /app/storage
+            # Determine if this is primary (index 0) or replica (index > 0)
+            # StatefulSet pods have stable names: excel-cluster-0, excel-cluster-1, excel-cluster-2
+            POD_INDEX=$(echo $HOSTNAME | grep -o '[0-9]*$')
+            if [ "$POD_INDEX" = "0" ]; then
+              echo "Running as PRIMARY (read-write)"
+              echo "primary" > /app/storage/.role
+              # Initialize Excel file if it doesn't exist (primary only)
+              if [ ! -f /app/storage/wanted.xlsx ]; then
+                echo "Initializing Excel storage on primary..."
+                # Create a simple placeholder - in production, this would be a proper Excel file
+                touch /app/storage/wanted.xlsx
+                touch /app/storage/wanted.xlsx.lock
+              fi
+            else
+              echo "Running as REPLICA (read-only) - Pod Index: $POD_INDEX"
+              echo "replica" > /app/storage/.role
+              # Replicas start empty and will sync from primary if needed
+              # For demo purposes, replicas are read-only
+            fi
+            # Keep container running
+            tail -f /dev/null
+        volumeMounts:
+        - name: excel-storage
+          mountPath: /app/storage
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+  volumeClaimTemplates:
+  - metadata:
+      name: excel-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: excop-excel-storage
+      resources:
+        requests:
+          storage: 1Gi
+

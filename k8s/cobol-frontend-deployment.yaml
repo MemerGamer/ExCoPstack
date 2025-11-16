@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cobol-frontend
+  namespace: excop
+  labels:
+    app: cobol-frontend
+    component: frontend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: cobol-frontend
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: cobol-frontend
+        component: frontend
+    spec:
+      containers:
+      - name: cobol-frontend
+        image: excop-cobol:latest
+        # In production, use a proper image registry
+        # image: your-registry/excop-cobol:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: API_BASE
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: API_BASE
+        - name: TZ
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: TZ
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+

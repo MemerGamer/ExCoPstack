@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: excel-shared-storage
+  namespace: excop
+spec:
+  accessModes:
+    - ReadWriteOnce  # GKE standard storage supports ReadWriteOnce
+    # Note: For ReadWriteMany, you'd need GKE Filestore (NFS)
+    # For now, we use ReadWriteOnce - only one PHP API pod will mount it
+    # In production, consider using Filestore or accessing via StatefulSet services
+  storageClassName: excop-excel-shared-storage
+  resources:
+    requests:
+      storage: 1Gi
+

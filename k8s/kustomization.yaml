@@ -1,0 +1,20 @@
+# Kustomization file for easier deployment
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: excop
+
+resources:
+  - namespace.yaml
+  - storageclass.yaml
+  - configmap.yaml
+  - secret.yaml
+  - excel-shared-pvc.yaml
+  - excel-statefulset.yaml
+  - excel-services.yaml
+  - php-api-deployment.yaml
+  - php-api-service.yaml
+  - cobol-frontend-deployment.yaml
+  - cobol-frontend-service.yaml
+  - ingress.yaml
+

@@ -1,0 +1,49 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: excop-ingress
+  namespace: excop
+  annotations:
+    # GKE Ingress annotations
+    # kubernetes.io/ingress.global-static-ip-name: "your-static-ip-name"  # Optional: use static IP
+    # networking.gke.io/managed-certificates: "your-cert-name"  # Optional: use managed SSL cert
+    kubernetes.io/ingress.class: "gce"
+spec:
+  # GKE uses GCE ingress (no ingressClassName needed, or use empty)
+  rules:
+  # Option 1: Without host (uses LoadBalancer IP)
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: cobol-frontend-service
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: php-api-service
+            port:
+              number: 9000
+  # Option 2: With host (uncomment to use custom domain)
+  # - host: excop.yourdomain.com
+  #   http:
+  #     paths:
+  #     - path: /
+  #       pathType: Prefix
+  #       backend:
+  #         service:
+  #           name: cobol-frontend-service
+  #           port:
+  #             number: 80
+  #     - path: /api
+  #       pathType: Prefix
+  #       backend:
+  #         service:
+  #           name: php-api-service
+  #           port:
+  #             number: 9000
+

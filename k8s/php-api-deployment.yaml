@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-api
+  namespace: excop
+  labels:
+    app: php-api
+    component: backend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: php-api
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: php-api
+        component: backend
+    spec:
+      containers:
+      - name: php-api
+        image: excop-php-api:latest
+        # In production, use a proper image registry
+        # image: your-registry/excop-php-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9000
+          name: http
+        env:
+        - name: API_BASE
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: API_BASE
+        - name: TZ
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: TZ
+        - name: EXCEL_PRIMARY_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: EXCEL_PRIMARY_HOST
+        - name: EXCEL_REPLICA_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: EXCEL_REPLICA_HOSTS
+        - name: EXCEL_STORAGE_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: EXCEL_STORAGE_PATH
+        - name: EXCEL_SHEET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: EXCEL_SHEET_NAME
+        - name: CORS_ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: CORS_ALLOWED_ORIGINS
+        - name: FRONTEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: excop-config
+              key: FRONTEND_URL
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: excop-secret
+              key: API_KEY
+        # Note: PHP API accesses Excel files via shared volume
+        # Using emptyDir for now to allow multiple pods (data persists per pod)
+        # In production, use NFS/Filestore for true shared storage
+        volumeMounts:
+        - name: excel-storage
+          mountPath: /app/storage
+          readOnly: false
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /api/wanted
+            port: 9000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /api/wanted
+            port: 9000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: excel-storage
+        emptyDir: {}
+        # Using emptyDir to allow multiple pods to mount
+        # Each pod has its own storage (data not shared between pods)
+        # In production, use NFS/Filestore for true shared storage
+        # Alternative: Access Excel files via StatefulSet services
+

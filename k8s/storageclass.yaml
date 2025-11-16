@@ -1,0 +1,24 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: excop-excel-storage
+provisioner: pd.csi.storage.gke.io
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: pd-standard
+  replication-type: none
+---
+# Shared storage for PHP API (ReadWriteMany support via NFS/Filestore)
+# For GKE, you can use Filestore or accept ReadWriteOnce limitation
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: excop-excel-shared-storage
+provisioner: pd.csi.storage.gke.io
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  type: pd-standard
+  replication-type: none
+

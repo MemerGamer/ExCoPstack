@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-api-service
+  namespace: excop
+spec:
+  selector:
+    app: php-api
+    component: backend
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: TCP
+    name: http
+  type: ClusterIP
+

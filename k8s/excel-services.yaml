@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: excel-headless
+  namespace: excop
+spec:
+  clusterIP: None
+  selector:
+    app: excel
+    component: database
+  ports:
+  - port: 8080
+    name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: excel-primary-service
+  namespace: excop
+spec:
+  # This service routes to the primary pod (excel-cluster-0) for read-write operations
+  # StatefulSet ensures pod names are stable: excel-cluster-0 is always the primary
+  # Use the headless service DNS: excel-cluster-0.excel-headless.excop.svc.cluster.local
+  # Or use this service which will route via the headless service
+  clusterIP: None
+  selector:
+    app: excel
+    component: database
+  ports:
+  - port: 8080
+    name: http
+  # Note: To route specifically to excel-cluster-0, use DNS:
+  # excel-cluster-0.excel-headless.excop.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: excel-replica-0-service
+  namespace: excop
+spec:
+  # This service routes to replica pod excel-cluster-1 for read-only operations
+  # Use DNS: excel-cluster-1.excel-headless.excop.svc.cluster.local
+  clusterIP: None
+  selector:
+    app: excel
+    component: database
+  ports:
+  - port: 8080
+    name: http
+  # Note: To route specifically to excel-cluster-1, use DNS:
+  # excel-cluster-1.excel-headless.excop.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: excel-replica-1-service
+  namespace: excop
+spec:
+  # This service routes to replica pod excel-cluster-2 for read-only operations
+  # Use DNS: excel-cluster-2.excel-headless.excop.svc.cluster.local
+  clusterIP: None
+  selector:
+    app: excel
+    component: database
+  ports:
+  - port: 8080
+    name: http
+  # Note: To route specifically to excel-cluster-2, use DNS:
+  # excel-cluster-2.excel-headless.excop.svc.cluster.local
+
