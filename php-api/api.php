@@ -71,6 +71,13 @@ if ($method === 'OPTIONS') {
 
 header('Content-Type: text/plain; charset=utf-8');
 
+// RFC 2324 / RFC 7168: this server refuses to brew coffee, it is a teapot
+if ($path === '/api/teapot' || $path === '/api/coffee') {
+    http_response_code(418);
+    echo "error,im-a-teapot\n";
+    exit;
+}
+
 if ($method === 'GET' && $path === '/api/wanted') {
     [$spreadsheet, $sheet] = loadSheet($xlsx, $sheetName);
 
